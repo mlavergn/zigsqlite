@@ -21,21 +21,25 @@ Build produces three artifacts:
 
 There are no tests yet.
 
+## Code Style
+
+All Zig code must follow `ZIGSTYLE.md`. Key points: init/deinit lifecycle, `const Self = @This()`, scoped logger per file, barrel re-exports via module.zig, no shorthand aliases, `std.Io` (not `std.io`).
+
 ## Architecture
 
 Module layout:
 
 ```
-src/sqlite.zig   — C FFI + Zig API (imports sqlite3.h via @cImport, compiles sqlite3.c)
+src/sqlite.zig   — C FFI + Zig API (SQLite, Statement, SQLiteError)
 src/module.zig   — Barrel re-export of sqlite.zig (library artifact root)
-cli/main.zig     — CLI entry point
+cli/main.zig     — CLI entry point (accepts db path and SQL args)
 sqlite/          — Amalgamation sources (immutable)
 ```
 
 - **sqlite/** — Raw SQLite C amalgamation sources (sqlite3.c, sqlite3.h, sqlite3ext.h, shell.c). **Immutable** — never modify these files. They are replaced wholesale when upgrading SQLite via `make download`.
-- **src/sqlite.zig** — Implementation layer. Imports `sqlite3.h` via `@cImport`, compiles `sqlite3.c`, and defines the `SQLite` struct wrapping `sqlite3*`.
-- **src/module.zig** — Barrel re-export of sqlite.zig. Root of the static library artifact (`libinsqlite3.a`).
-- **cli/main.zig** — CLI entry point. Imports `src/sqlite.zig` as `"sqlite"`.
+- **src/sqlite.zig** — Implementation layer. Imports `sqlite3.h` via `@cImport`, compiles `sqlite3.c`. Defines `SQLiteError` (error set), `Statement` (prepared statement wrapper), and `SQLite` (database connection wrapper with init/deinit, exec/execScript, prepare).
+- **src/module.zig** — Barrel re-export of sqlite.zig (`SQLiteError`, `Statement`, `SQLite`). Root of the static library artifact (`libinsqlite3.a`).
+- **cli/main.zig** — CLI entry point. Usage: `insqlite3 [db_path] [sql]`. Auto-detects queries (SELECT) vs statements via column count.
 
 In build.zig, the module import graph is:
 - `src_mod` (root: `src/sqlite.zig`, compiles `sqlite3.c`, links libc) — the core module

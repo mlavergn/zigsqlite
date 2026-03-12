@@ -8,7 +8,7 @@ SQLite is compiled from the amalgamation sources and statically linked, so consu
 
 ```
 sqlite/          — SQLite amalgamation sources (immutable, do not modify)
-src/sqlite.zig   — C FFI bindings and Zig API (implementation)
+src/sqlite.zig   — C FFI bindings and Zig API (SQLite, Statement, SQLiteError)
 src/module.zig   — Barrel re-export (library artifact root)
 cli/main.zig     — CLI application entry point
 ```
@@ -35,6 +35,22 @@ make clean             # remove build output
 | `zig-out/lib/libinsqlite3.a` | Static library |
 | `zig-out/bin/sqlite3` | Standard SQLite CLI (from upstream shell.c) |
 | `zig-out/bin/insqlite3` | Zig-based CLI |
+
+## CLI Usage
+
+```bash
+insqlite3 [db_path] [sql]
+```
+
+- Defaults to `:memory:` if no path given
+- Queries (SELECT) print pipe-delimited rows
+- Statements (CREATE, INSERT, etc.) execute and report ok
+
+```bash
+insqlite3 my.db "CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)"
+insqlite3 my.db "INSERT INTO t VALUES (1, 'hello')"
+insqlite3 my.db "SELECT * FROM t"
+```
 
 ## Updating SQLite
 
