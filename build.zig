@@ -89,4 +89,27 @@ pub fn build(b: *std.Build) !void {
         .root_module = cli_mod,
     });
     b.installArtifact(bin);
+
+    // Test step — runs unit tests in src/sqlite.zig
+    const test_mod = b.createModule(.{
+        .target = target,
+        .optimize = optimize,
+        .root_source_file = b.path("src/sqlite.zig"),
+        .link_libc = true,
+    });
+    test_mod.addIncludePath(b.path("sqlite"));
+    test_mod.addCSourceFile(.{
+        .file = b.path("sqlite/sqlite3.c"),
+        .flags = &[_][]const u8{
+            "-fPIC",
+            "-fno-sanitize=undefined",
+        },
+    });
+
+    const unit_tests = b.addTest(.{
+        .root_module = test_mod,
+    });
+    const run_tests = b.addRunArtifact(unit_tests);
+    const test_step = b.step("test", "Run unit tests");
+    test_step.dependOn(&run_tests.step);
 }
