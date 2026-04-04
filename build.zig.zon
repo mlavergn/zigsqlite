@@ -1,13 +1,12 @@
 .{
-    .name = .insqlite3,
-    .version = "3.51.2",
+    .name = .insqlite,
+    .version = "3.51.2.1",
     .minimum_zig_version = "0.15.2",
-    .fingerprint = 0x201899b7faba6090,
+    .fingerprint = 0x78767460622f522f,
     .paths = .{
         "sqlite",
         "src",
         "cli",
     },
-    .dependencies = .{
-    },
+    .dependencies = .{},
 }

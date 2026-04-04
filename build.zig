@@ -3,6 +3,64 @@ const std = @import("std");
 
 const zon = @import("build.zig.zon");
 
+/// Options for creating a SQLite module with optional static extensions.
+pub const Config = struct {
+    target: std.Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
+    /// C source files for statically linked extensions.
+    /// Compile extension sources with `-DSQLITE_CORE` when the extension
+    /// supports it, so it links directly rather than through the loadable
+    /// extension interface.
+    extension_c_source_files: []const std.Build.Module.CSourceFile = &.{},
+    /// Additional include paths (e.g. for extension headers).
+    extension_include_paths: []const std.Build.LazyPath = &.{},
+};
+
+/// Creates a SQLite module suitable for use as an import in consumer code.
+/// When used as a dependency:
+///
+/// ```zig
+/// const dep = b.dependency("insqlite", .{});
+/// const insqlite = @import("insqlite");
+/// const sqlite_mod = insqlite.createModule(dep, .{
+///     .target = target,
+///     .optimize = optimize,
+///     .extension_c_source_files = &.{
+///         .{ .file = b.path("ext/my_extension.c"), .flags = &.{"-DSQLITE_CORE"} },
+///     },
+/// });
+/// my_mod.addImport("sqlite", sqlite_mod);
+/// ```
+pub fn createModule(dep: *std.Build.Dependency, options: Config) *std.Build.Module {
+    return createSqliteModule(dep.builder, options);
+}
+
+/// Creates the core SQLite module rooted at src/module.zig. Compiles the
+/// SQLite amalgamation C source and links libc. Optional extension C
+/// sources and include paths are added when provided.
+fn createSqliteModule(b: *std.Build, options: Config) *std.Build.Module {
+    const mod = b.createModule(.{
+        .target = options.target,
+        .optimize = options.optimize,
+        .root_source_file = b.path("src/module.zig"),
+        .link_libc = true,
+    });
+    mod.addIncludePath(b.path("sqlite"));
+    mod.addCSourceFile(.{
+        .file = b.path("sqlite/sqlite3.c"),
+        .flags = &[_][]const u8{
+            "-fno-sanitize=undefined",
+        },
+    });
+    for (options.extension_include_paths) |path| {
+        mod.addIncludePath(path);
+    }
+    for (options.extension_c_source_files) |src| {
+        mod.addCSourceFile(src);
+    }
+    return mod;
+}
+
 pub fn build(b: *std.Build) !void {
     const name = @tagName(zon.name);
     const semVer = try std.SemanticVersion.parse(zon.version);
@@ -20,29 +78,11 @@ pub fn build(b: *std.Build) !void {
 
     const optimize = b.standardOptimizeOption(.{ .preferred_optimize_mode = .ReleaseFast });
 
-    // src/sqlite.zig — SQLite implementation (C FFI + Zig API)
-    const src_mod = b.createModule(.{
+    // src/module.zig — library barrel (SQLite + Statement + C FFI)
+    const sqlite_mod = createSqliteModule(b, .{
         .target = target,
         .optimize = optimize,
-        .root_source_file = b.path("src/sqlite.zig"),
-        .link_libc = true,
     });
-    src_mod.addIncludePath(b.path("sqlite"));
-    src_mod.addCSourceFile(.{
-        .file = b.path("sqlite/sqlite3.c"),
-        .flags = &[_][]const u8{
-            "-fPIC",
-            "-fno-sanitize=undefined",
-        },
-    });
-
-    // src/module.zig — barrel re-export of sqlite.zig
-    const sqlite_mod = b.createModule(.{
-        .target = target,
-        .optimize = optimize,
-        .root_source_file = b.path("src/module.zig"),
-    });
-    sqlite_mod.addImport("sqlite", src_mod);
 
     // SQLite library artifact
     const lib = b.addLibrary(.{
@@ -62,7 +102,6 @@ pub fn build(b: *std.Build) !void {
     sqlite3_cli_mod.addCSourceFile(.{
         .file = b.path("sqlite/sqlite3.c"),
         .flags = &[_][]const u8{
-            "-fPIC",
             "-fno-sanitize=undefined",
         },
     });
@@ -76,34 +115,24 @@ pub fn build(b: *std.Build) !void {
     });
     b.installArtifact(sqlite3_cli);
 
-    // insqlite CLI — imports src module as "sqlite"
-    const cli_mod = b.createModule(.{
+    // demo CLI — imports library module as "sqlite"
+    const demo_mod = b.createModule(.{
         .target = target,
         .optimize = optimize,
         .root_source_file = b.path("cli/main.zig"),
     });
-    cli_mod.addImport("sqlite", src_mod);
+    demo_mod.addImport("sqlite", sqlite_mod);
 
-    const bin = b.addExecutable(.{
-        .name = name,
-        .root_module = cli_mod,
+    const demo = b.addExecutable(.{
+        .name = "demo",
+        .root_module = demo_mod,
     });
-    b.installArtifact(bin);
+    b.installArtifact(demo);
 
-    // Test step — runs unit tests in src/sqlite.zig
-    const test_mod = b.createModule(.{
+    // Test step — runs unit tests via module.zig (refAllDecls discovers all)
+    const test_mod = createSqliteModule(b, .{
         .target = target,
         .optimize = optimize,
-        .root_source_file = b.path("src/sqlite.zig"),
-        .link_libc = true,
-    });
-    test_mod.addIncludePath(b.path("sqlite"));
-    test_mod.addCSourceFile(.{
-        .file = b.path("sqlite/sqlite3.c"),
-        .flags = &[_][]const u8{
-            "-fPIC",
-            "-fno-sanitize=undefined",
-        },
     });
 
     const unit_tests = b.addTest(.{

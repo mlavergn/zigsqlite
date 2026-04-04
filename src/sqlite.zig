@@ -1,168 +1,11 @@
 const std = @import("std");
-const log = std.log.scoped(.insqlite3_sqlite);
+const log = std.log.scoped(.insqlite_sqlite);
 
-const c = @cImport({
+const mod = @import("module.zig");
+
+pub const c = @cImport({
     @cInclude("sqlite3.h");
 });
-
-/// Zig error set mapping common SQLite result codes.
-pub const SQLiteError = error{
-    SQLiteError,
-    SQLitePerm,
-    SQLiteBusy,
-    SQLiteLocked,
-    SQLiteNoMem,
-    SQLiteReadOnly,
-    SQLiteIOErr,
-    SQLiteCorrupt,
-    SQLiteFull,
-    SQLiteCantOpen,
-    SQLiteConstraint,
-    SQLiteMismatch,
-    SQLiteMisuse,
-    SQLiteAuth,
-    SQLiteRange,
-    SQLiteNotADB,
-};
-
-/// Maps a SQLite C result code to a Zig error.
-fn mapError(rc: c_int) SQLiteError {
-    return switch (rc) {
-        c.SQLITE_ERROR => error.SQLiteError,
-        c.SQLITE_PERM => error.SQLitePerm,
-        c.SQLITE_BUSY => error.SQLiteBusy,
-        c.SQLITE_LOCKED => error.SQLiteLocked,
-        c.SQLITE_NOMEM => error.SQLiteNoMem,
-        c.SQLITE_READONLY => error.SQLiteReadOnly,
-        c.SQLITE_IOERR => error.SQLiteIOErr,
-        c.SQLITE_CORRUPT => error.SQLiteCorrupt,
-        c.SQLITE_FULL => error.SQLiteFull,
-        c.SQLITE_CANTOPEN => error.SQLiteCantOpen,
-        c.SQLITE_CONSTRAINT => error.SQLiteConstraint,
-        c.SQLITE_MISMATCH => error.SQLiteMismatch,
-        c.SQLITE_MISUSE => error.SQLiteMisuse,
-        c.SQLITE_AUTH => error.SQLiteAuth,
-        c.SQLITE_RANGE => error.SQLiteRange,
-        c.SQLITE_NOTADB => error.SQLiteNotADB,
-        else => error.SQLiteError,
-    };
-}
-
-/// A prepared SQL statement. Created by `SQLite.prepare` and must be
-/// released with `deinit`. Holds a reference to the parent database
-/// connection for error reporting.
-pub const Statement = struct {
-    const Self = @This();
-
-    stmt: *c.sqlite3_stmt,
-    db: *c.sqlite3,
-
-    /// Releases the prepared statement resources via `sqlite3_finalize`.
-    pub fn deinit(self: *Self) void {
-        log.debug("{s}:{d} :: {s}", .{ @src().file, @src().line, @src().fn_name });
-        _ = c.sqlite3_finalize(self.stmt);
-    }
-
-    /// Advances to the next row. Returns `true` if a row is available
-    /// for reading, `false` when execution is complete.
-    pub fn step(self: *Self) !bool {
-        log.debug("{s}:{d} :: {s}", .{ @src().file, @src().line, @src().fn_name });
-        const rc = c.sqlite3_step(self.stmt);
-        if (rc == c.SQLITE_ROW) return true;
-        if (rc == c.SQLITE_DONE) return false;
-        log.err("step failed: {s}", .{c.sqlite3_errmsg(self.db)});
-        return mapError(rc);
-    }
-
-    /// Returns the number of columns in the result set.
-    pub fn columnCount(self: *const Self) u32 {
-        return @intCast(c.sqlite3_column_count(self.stmt));
-    }
-
-    /// Returns the value of column `col` as a 64-bit integer.
-    pub fn columnInt(self: *const Self, col: u32) i64 {
-        return c.sqlite3_column_int64(self.stmt, @intCast(col));
-    }
-
-    /// Returns the value of column `col` as a Zig slice, or `null`
-    /// if the column is SQL NULL.
-    pub fn columnText(self: *const Self, col: u32) ?[]const u8 {
-        const idx: c_int = @intCast(col);
-        const raw = c.sqlite3_column_text(self.stmt, idx);
-        if (raw == null) return null;
-        const len: usize = @intCast(c.sqlite3_column_bytes(self.stmt, idx));
-        const ptr: [*]const u8 = @ptrCast(raw);
-        return ptr[0..len];
-    }
-
-    /// Returns the value of column `col` as a 64-bit float.
-    pub fn columnDouble(self: *const Self, col: u32) f64 {
-        return c.sqlite3_column_double(self.stmt, @intCast(col));
-    }
-
-    /// Binds a 64-bit integer value to parameter at `idx` (1-based).
-    pub fn bindInt(self: *Self, idx: u32, val: i64) !void {
-        log.debug("{s}:{d} :: {s}", .{ @src().file, @src().line, @src().fn_name });
-        const rc = c.sqlite3_bind_int64(self.stmt, @intCast(idx), val);
-        if (rc != c.SQLITE_OK) {
-            log.err("bindInt failed: {s}", .{c.sqlite3_errmsg(self.db)});
-            return mapError(rc);
-        }
-    }
-
-    /// Binds a text value to parameter at `idx` (1-based). Uses
-    /// SQLITE_STATIC — the caller must ensure `val` outlives the
-    /// statement execution (until step, reset, or deinit).
-    pub fn bindText(self: *Self, idx: u32, val: []const u8) !void {
-        log.debug("{s}:{d} :: {s}", .{ @src().file, @src().line, @src().fn_name });
-        const rc = c.sqlite3_bind_text(self.stmt, @intCast(idx), val.ptr, @intCast(val.len), null);
-        if (rc != c.SQLITE_OK) {
-            log.err("bindText failed: {s}", .{c.sqlite3_errmsg(self.db)});
-            return mapError(rc);
-        }
-    }
-
-    /// Binds a 64-bit float value to parameter at `idx` (1-based).
-    pub fn bindDouble(self: *Self, idx: u32, val: f64) !void {
-        log.debug("{s}:{d} :: {s}", .{ @src().file, @src().line, @src().fn_name });
-        const rc = c.sqlite3_bind_double(self.stmt, @intCast(idx), val);
-        if (rc != c.SQLITE_OK) {
-            log.err("bindDouble failed: {s}", .{c.sqlite3_errmsg(self.db)});
-            return mapError(rc);
-        }
-    }
-
-    /// Binds SQL NULL to parameter at `idx` (1-based).
-    pub fn bindNull(self: *Self, idx: u32) !void {
-        log.debug("{s}:{d} :: {s}", .{ @src().file, @src().line, @src().fn_name });
-        const rc = c.sqlite3_bind_null(self.stmt, @intCast(idx));
-        if (rc != c.SQLITE_OK) {
-            log.err("bindNull failed: {s}", .{c.sqlite3_errmsg(self.db)});
-            return mapError(rc);
-        }
-    }
-
-    /// Resets the statement so it can be re-executed with new bindings.
-    pub fn reset(self: *Self) !void {
-        log.debug("{s}:{d} :: {s}", .{ @src().file, @src().line, @src().fn_name });
-        const rc = c.sqlite3_reset(self.stmt);
-        if (rc != c.SQLITE_OK) {
-            log.err("reset failed: {s}", .{c.sqlite3_errmsg(self.db)});
-            return mapError(rc);
-        }
-    }
-
-    /// Clears all parameter bindings, setting them to NULL.
-    /// Call after `reset` to avoid stale bindings when reusing a statement.
-    pub fn clearBindings(self: *Self) !void {
-        log.debug("{s}:{d} :: {s}", .{ @src().file, @src().line, @src().fn_name });
-        const rc = c.sqlite3_clear_bindings(self.stmt);
-        if (rc != c.SQLITE_OK) {
-            log.err("clearBindings failed: {s}", .{c.sqlite3_errmsg(self.db)});
-            return mapError(rc);
-        }
-    }
-};
 
 /// Zig wrapper around a SQLite database connection. Manages the
 /// lifecycle of the underlying `sqlite3*` handle and provides
@@ -172,6 +15,23 @@ pub const SQLite = struct {
 
     db: ?*c.sqlite3 = null,
 
+    /// Registers a statically linked extension to be automatically loaded
+    /// on every new database connection. Must be called before `init`.
+    /// The entry_point is the extension's init function, e.g.:
+    ///
+    ///     extern fn sqlite3_uuid_init() callconv(.c) void;
+    ///     try SQLite.registerExtension(@ptrCast(&sqlite3_uuid_init));
+    ///
+    pub fn registerExtension(entry_point: *const fn () callconv(.c) void) !void {
+        const rc = c.sqlite3_auto_extension(entry_point);
+        if (rc != c.SQLITE_OK) return mod.Errors.mapError(rc);
+    }
+
+    /// Removes all previously registered auto-extensions.
+    pub fn resetExtensions() void {
+        c.sqlite3_reset_auto_extension();
+    }
+
     /// Opens a database file at `path`. Use ":memory:" for an
     /// in-memory database. The connection must be released with `deinit`.
     pub fn init(path: [*:0]const u8) !Self {
@@ -180,7 +40,7 @@ pub const SQLite = struct {
         const rc = c.sqlite3_open(path, &db);
         if (rc != c.SQLITE_OK) {
             if (db) |d| _ = c.sqlite3_close(d);
-            return mapError(rc);
+            return mod.Errors.mapError(rc);
         }
         return Self{ .db = db };
     }
@@ -205,41 +65,28 @@ pub const SQLite = struct {
         const rc = c.sqlite3_exec(db, sql, null, null, null);
         if (rc != c.SQLITE_OK) {
             log.err("exec failed: {s}", .{c.sqlite3_errmsg(db)});
-            return mapError(rc);
+            return mod.Errors.mapError(rc);
         }
     }
 
     /// Compiles a SQL statement and returns a `Statement` that can be
     /// stepped through to read result rows. The caller must call
     /// `Statement.deinit` when finished.
-    pub fn prepare(self: *Self, sql: [*:0]const u8) !Statement {
+    pub fn prepare(self: *Self, sql: [*:0]const u8) !mod.Statement {
         log.debug("{s}:{d} :: {s}", .{ @src().file, @src().line, @src().fn_name });
         const db = self.db orelse return error.SQLiteMisuse;
         var stmt: ?*c.sqlite3_stmt = null;
         const rc = c.sqlite3_prepare_v2(db, sql, -1, &stmt, null);
         if (rc != c.SQLITE_OK) {
             log.err("prepare failed: {s}", .{c.sqlite3_errmsg(db)});
-            return mapError(rc);
+            return mod.Errors.mapError(rc);
         }
-        return Statement{
-            .stmt = stmt orelse return error.SQLiteError,
-            .db = db,
-        };
+        return mod.Statement.init(stmt orelse return mod.Errors.mapError(c.SQLITE_ERROR), db);
     }
 };
 
 // -----------------------------------------------------------------------------
 // Unit Tests
-
-test "mapError known codes" {
-    try std.testing.expectEqual(error.SQLitePerm, mapError(c.SQLITE_PERM));
-    try std.testing.expectEqual(error.SQLiteBusy, mapError(c.SQLITE_BUSY));
-    try std.testing.expectEqual(error.SQLiteConstraint, mapError(c.SQLITE_CONSTRAINT));
-}
-
-test "mapError unknown code" {
-    try std.testing.expectEqual(error.SQLiteError, mapError(999));
-}
 
 test "init and deinit" {
     var db = try SQLite.init(":memory:");

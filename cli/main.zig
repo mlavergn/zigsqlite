@@ -1,5 +1,5 @@
 const std = @import("std");
-const log = std.log.scoped(.insqlite3_cli);
+const log = std.log.scoped(.insqlite_cli);
 
 const mod = @import("sqlite");
 
@@ -18,12 +18,12 @@ pub fn main() !void {
     defer db.deinit();
 
     if (sql) |stmt_sql| {
-        // Prepare to detect whether this is a query (has result columns).
         var stmt = try db.prepare(stmt_sql);
+        defer stmt.deinit();
 
         const col_count = stmt.columnCount();
         if (col_count > 0) {
-            defer stmt.deinit();
+            // Query: step through result rows.
             while (try stmt.step()) {
                 var col: u32 = 0;
                 while (col < col_count) : (col += 1) {
@@ -37,10 +37,8 @@ pub fn main() !void {
                 std.debug.print("\n", .{});
             }
         } else {
-            // Non-query: finalize the probe and use exec() which
-            // handles multiple semicolon-separated statements.
-            stmt.deinit();
-            try db.exec(stmt_sql);
+            // Non-query: step to execute the single statement.
+            _ = try stmt.step();
             log.info("ok", .{});
         }
     } else {
