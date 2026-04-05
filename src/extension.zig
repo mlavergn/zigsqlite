@@ -91,6 +91,24 @@ pub const Extension = struct {
     pub const contextDbHandle = c.sqlite3_context_db_handle;
 
     // -------------------------------------------------------------------------
+    // Raw C API (for shell integration and auto-extension registration)
+
+    /// Opaque raw database connection handle (sqlite3*).
+    pub const Db = c.sqlite3;
+
+    /// SQLite success result code.
+    pub const SQLITE_OK = c.SQLITE_OK;
+
+    /// Raw sqlite3_create_function for use with raw db handles (e.g. auto-extension callbacks).
+    pub const createFunction = c.sqlite3_create_function;
+
+    /// Registers an auto-extension that runs on every new connection.
+    pub const autoExtension = c.sqlite3_auto_extension;
+
+    /// Auto-extension entry point signature: called on every new connection.
+    pub const AutoExtensionFn = *const fn (?*Db, ?*?*u8, ?*const anyopaque) callconv(.c) c_int;
+
+    // -------------------------------------------------------------------------
     // Registration
 
     /// Registers a scalar SQL function on the given database connection.
