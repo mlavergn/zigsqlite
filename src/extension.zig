@@ -87,6 +87,9 @@ pub const Extension = struct {
     /// Sets the function result to an out-of-memory error.
     pub const resultErrorNomem = c.sqlite3_result_error_nomem;
 
+    /// Returns the database connection handle associated with a callback context.
+    pub const contextDbHandle = c.sqlite3_context_db_handle;
+
     // -------------------------------------------------------------------------
     // Registration
 
