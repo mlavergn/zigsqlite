@@ -25,7 +25,10 @@ download:
 	cd src; unzip -j ../sqlite.zip
 
 build:
-	zig build --verbose
+	zig build
+
+dist:
+	zig build -Doptimize=ReleaseSafe
 
 format:
 	zig fmt **/*.zig

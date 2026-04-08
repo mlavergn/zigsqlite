@@ -1,6 +1,6 @@
 .{
     .name = .insqlite,
-    .version = "3.51.2-inferise+001",
+    .version = "1.0.0-sqlite-3051002",
     .minimum_zig_version = "0.15.2",
     .fingerprint = 0x78767460622f522f,
     .paths = .{

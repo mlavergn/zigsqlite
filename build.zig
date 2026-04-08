@@ -63,11 +63,6 @@ fn createSqliteModule(b: *std.Build, options: Config) *std.Build.Module {
 
 pub fn build(b: *std.Build) !void {
     const name = @tagName(zon.name);
-    const semVer = try std.SemanticVersion.parse(zon.version);
-
-    std.log.info("Version: {s}", .{zon.version});
-    std.log.info("SemVersion: {any}", .{semVer});
-
     const target = b.resolveTargetQuery(.{
         .cpu_arch = .aarch64,
         .os_tag = .macos,
