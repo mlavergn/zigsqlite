@@ -28,7 +28,7 @@ build:
 	zig build
 
 dist:
-	zig build -Doptimize=ReleaseSafe
+	zig build --release=safe
 
 format:
 	zig fmt **/*.zig
