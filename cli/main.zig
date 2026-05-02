@@ -6,8 +6,8 @@ const mod = @import("sqlite");
 /// CLI entry point. Accepts an optional database path and SQL string.
 /// With SQL: executes the statement(s) — queries print rows, non-queries
 /// run via `exec`. Without SQL: runs the built-in EMP/DEPT demo.
-pub fn main() !void {
-    var args = std.process.args();
+pub fn main(init: std.process.Init.Minimal) !void {
+    var args = init.args.iterate();
     _ = args.next();
 
     const db_path = args.next() orelse ":memory:";

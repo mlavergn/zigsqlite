@@ -1,7 +1,7 @@
 .{
     .name = .insqlite,
-    .version = "1.0.0-sqlite-3051002",
-    .minimum_zig_version = "0.15.2",
+    .version = "1.0.1-sqlite-3051002",
+    .minimum_zig_version = "0.16.0",
     .fingerprint = 0x78767460622f522f,
     .paths = .{
         "sqlite",
