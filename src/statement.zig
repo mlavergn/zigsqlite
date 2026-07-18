@@ -1,5 +1,5 @@
 const std = @import("std");
-const log = std.log.scoped(.insqlite_statement);
+const log = std.log.scoped(.zigsqlite_statement);
 
 const mod = @import("module.zig");
 const c = mod.c;

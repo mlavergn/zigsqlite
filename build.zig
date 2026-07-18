@@ -20,9 +20,9 @@ pub const Config = struct {
 /// When used as a dependency:
 ///
 /// ```zig
-/// const dep = b.dependency("insqlite", .{});
-/// const insqlite = @import("insqlite");
-/// const sqlite_mod = insqlite.createModule(dep, .{
+/// const dep = b.dependency("zigsqlite", .{});
+/// const zigsqlite = @import("zigsqlite");
+/// const sqlite_mod = zigsqlite.createModule(dep, .{
 ///     .target = target,
 ///     .optimize = optimize,
 ///     .extension_c_source_files = &.{

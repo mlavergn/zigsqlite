@@ -1,4 +1,4 @@
-# insqlite
+# zigsqlite
 
 A Zig module that embeds SQLite and exposes a Zig-friendly database interface. Can be used as a Zig package dependency to build SQLite with custom statically linked extensions.
 
@@ -11,6 +11,7 @@ sqlite/             — SQLite amalgamation sources (immutable, do not modify)
 src/errors.zig      — Error set and error mapping (Errors, SQLiteError)
 src/sqlite.zig      — C FFI bindings and Zig API (SQLite)
 src/statement.zig   — Prepared statement wrapper (Statement)
+src/extension.zig   — Scalar function / auto-extension support (Extension)
 src/module.zig      — Barrel re-export (library artifact root)
 cli/main.zig        — Demo CLI entry point
 ```
@@ -19,7 +20,7 @@ The `sqlite/` directory contains unmodified upstream SQLite sources. Treat these
 
 ## Requirements
 
-- Zig >= 0.15.2
+- Zig >= 0.16.0
 - macOS (aarch64)
 
 ## Build
@@ -34,7 +35,7 @@ make clean             # remove build output
 
 | Artifact | Description |
 |---|---|
-| `zig-out/lib/libinsqlite.a` | Static library |
+| `zig-out/lib/libzigsqlite.a` | Static library |
 | `zig-out/bin/sqlite3` | Standard SQLite CLI (from upstream shell.c) |
 | `zig-out/bin/demo` | Demo CLI using the Zig API |
 
@@ -56,13 +57,13 @@ demo my.db "SELECT * FROM t"
 
 ## Using as a Dependency (Static Extensions)
 
-Downstream projects can add insqlite as a Zig dependency to build SQLite with custom C extensions statically linked in.
+Downstream projects can add zigsqlite as a Zig dependency to build SQLite with custom C extensions statically linked in.
 
 ### build.zig.zon
 
 ```zon
 .dependencies = .{
-    .insqlite = .{
+    .zigsqlite = .{
         .url = "...",
         .hash = "...",
     },
@@ -72,9 +73,9 @@ Downstream projects can add insqlite as a Zig dependency to build SQLite with cu
 ### build.zig
 
 ```zig
-const insqlite = @import("insqlite");
-const dep = b.dependency("insqlite", .{});
-const sqlite_mod = insqlite.createModule(dep, .{
+const zigsqlite = @import("zigsqlite");
+const dep = b.dependency("zigsqlite", .{});
+const sqlite_mod = zigsqlite.createModule(dep, .{
     .target = target,
     .optimize = optimize,
     .extension_c_source_files = &.{

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-insqlite — a Zig wrapper module embedding SQLite (amalgamation) with a Zig-friendly API. Can be used as a Zig package dependency to build SQLite with custom statically linked extensions. Targets aarch64 macOS (Apple Silicon). No external dependencies.
+zigsqlite — a Zig wrapper module embedding SQLite (amalgamation) with a Zig-friendly API. Can be used as a Zig package dependency to build SQLite with custom statically linked extensions. Targets aarch64 macOS (Apple Silicon). No external dependencies.
 
 ## Build Commands
 
@@ -15,7 +15,7 @@ make clean                # Remove zig-out/
 ```
 
 Build produces three artifacts:
-- `zig-out/lib/libinsqlite.a` — static library
+- `zig-out/lib/libzigsqlite.a` — static library
 - `zig-out/bin/sqlite3` — standard SQLite CLI (from shell.c)
 - `zig-out/bin/demo` — demo CLI using the Zig API
 
@@ -23,13 +23,13 @@ Tests: `zig build test`
 
 ## Dependency Usage (Static Extensions)
 
-Downstream projects can use insqlite as a Zig dependency to build SQLite with custom C extensions statically linked in:
+Downstream projects can use zigsqlite as a Zig dependency to build SQLite with custom C extensions statically linked in:
 
 ```zig
 // consumer's build.zig
-const insqlite = @import("insqlite");
-const dep = b.dependency("insqlite", .{});
-const sqlite_mod = insqlite.createModule(dep, .{
+const zigsqlite = @import("zigsqlite");
+const dep = b.dependency("zigsqlite", .{});
+const sqlite_mod = zigsqlite.createModule(dep, .{
     .target = target,
     .optimize = optimize,
     .extension_c_source_files = &.{
@@ -49,7 +49,7 @@ var db = try sqlite.SQLite.init(":memory:");
 
 ## Code Style
 
-All Zig code must follow `ZIGSTYLE.md`. Key points: init/deinit lifecycle, `const Self = @This()`, scoped logger per file, barrel re-exports via module.zig, no shorthand aliases, `std.Io` (not `std.io`).
+All Zig code must follow `styleguide/ZIGSTYLE.md`. Key points: init/deinit lifecycle, `const Self = @This()`, scoped logger per file, barrel re-exports via module.zig, no shorthand aliases, `std.Io` (not `std.io`).
 
 ## Architecture
 
@@ -59,6 +59,7 @@ Module layout:
 src/errors.zig      — Error set and error mapping (Errors struct, SQLiteError)
 src/sqlite.zig      — C FFI + Zig API (SQLite struct)
 src/statement.zig   — Prepared statement wrapper (Statement struct)
+src/extension.zig   — Scalar function / auto-extension support (Extension struct)
 src/module.zig      — Barrel re-export (library artifact root)
 cli/main.zig        — CLI entry point (accepts db path and SQL args)
 sqlite/             — Amalgamation sources (immutable)
@@ -68,7 +69,8 @@ sqlite/             — Amalgamation sources (immutable)
 - **src/errors.zig** — Error handling. Defines `SQLiteError` (error set mapping common SQLite result codes) and `Errors` (namespace struct with `mapError` for converting C result codes to Zig errors).
 - **src/sqlite.zig** — Database connection wrapper. Imports `sqlite3.h` via `@cImport`, compiles `sqlite3.c`. Defines `SQLite` (database connection with init/deinit, exec, prepare, registerExtension/resetExtensions).
 - **src/statement.zig** — Prepared statement wrapper. Defines `Statement` (step, column accessors, bind parameters, reset/clearBindings). Uses the shared `@cImport` from sqlite.zig via the module barrel.
-- **src/module.zig** — Barrel re-export of all source files (`Errors`, `SQLiteError`, `SQLite`, `Statement`). Root of the static library artifact (`libinsqlite.a`).
+- **src/extension.zig** — Extension function support. Defines `Extension` (type aliases for the C callback API, value accessors, result setters, and `register` for scalar SQL functions). Uses the shared `@cImport` from sqlite.zig via the module barrel.
+- **src/module.zig** — Barrel re-export of all source files (`Errors`, `SQLiteError`, `SQLite`, `Statement`, `Extension`). Root of the static library artifact (`libzigsqlite.a`).
 - **cli/main.zig** — Demo CLI entry point. Usage: `demo [db_path] [sql]`. Auto-detects queries (SELECT) vs statements via column count.
 
 In build.zig, the module import graph is:
@@ -80,6 +82,6 @@ The sqlite3 CLI is a separate build target compiling shell.c + sqlite3.c directl
 
 ## Build Notes
 
-- Requires Zig >= 0.15.2
+- Requires Zig >= 0.16.0
 - SQLite compiled with `-fno-sanitize=undefined`
 - Optimization: ReleaseFast
