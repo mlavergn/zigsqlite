@@ -1,19 +1,16 @@
 const std = @import("std");
-const log = std.log.scoped(.zigsqlite_module);
+const builtin = @import("builtin");
 
-const sqlite = @import("sqlite.zig");
-pub const c = sqlite.c;
-pub const SQLite = sqlite.SQLite;
+pub const is_debug = builtin.mode == .debug;
 
-const errors = @import("errors.zig");
-pub const Errors = errors.Errors;
-pub const SQLiteError = errors.SQLiteError;
+/// The SQLite C API, translated from `sqlite3.h` by build.zig.
+pub const c = @import("sqlite3_h");
 
-const statement = @import("statement.zig");
-pub const Statement = statement.Statement;
-
-const extension = @import("extension.zig");
-pub const Extension = extension.Extension;
+pub const Errors = @import("errors.zig").Errors;
+pub const SQLiteError = @import("errors.zig").SQLiteError;
+pub const SQLite = @import("sqlite.zig").SQLite;
+pub const Statement = @import("statement.zig").Statement;
+pub const Extension = @import("extension.zig").Extension;
 
 // -----------------------------------------------------------------------------
 // Unit Tests

@@ -4,6 +4,9 @@
 #
 ###############################################
 
+# Optional include to extend the makefile targets
+-include ../styleguide/Makefile.in
+
 .DEFAULT_GOAL := build
 
 ###############################################
@@ -17,35 +20,27 @@ open:
 home:
 	open https://www.sqlite.org
 
-YEAR = 2026
-VERSION = 3510200
-download:
-	curl -o sqlite.zip https://www.sqlite.org/${YEAR}/sqlite-amalgamation-${VERSION}.zip
-	-mkdir -p src
-	cd src; unzip -j ../sqlite.zip
-
 build:
 	zig build
 
 dist:
 	zig build --release=safe
 
-format:
-	zig fmt **/*.zig
-
 test:
 	zig build test
 
-validate: clean format build test
-	echo "validate done"
-
 demo:
+	./zig-out/bin/sqlite3
+
+# Build, then open the sqlite3 shell. Phony: cli/ is also a directory.
+.PHONY: cli
+cli: build
 	./zig-out/bin/sqlite3
 
 clean:
 	-rm -r zig-out
 
-all: download build
+all: build
 	echo "done"
 
 # ---------------------------------------------
@@ -66,13 +61,9 @@ tag:
 # Submodules
 # ---------------------------------------------
 
-# Add the shared styleguide submodule.
-substyle:
-	git submodule add git@github.com:inferise/styleguide.git styleguide
-
 # Add the wiki submodule.
 subwiki:
-	git submodule add git@github.com:inferise/zigsqlite.wiki.git wiki
+	git submodule add git@github.com:mlavergn/zigsqlite.wiki.git wiki
 
 # Init/update all submodules.
 subpull:

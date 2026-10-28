@@ -1,8 +1,6 @@
 const std = @import("std");
 const log = std.log.scoped(.zigsqlite_extension);
-
 const mod = @import("module.zig");
-const c = mod.c;
 
 /// Extension function support for SQLite. Provides type aliases for the C
 /// callback API and a registration method for scalar functions. Abstracts
@@ -14,25 +12,25 @@ pub const Extension = struct {
     // Opaque C types used by extension function callbacks
 
     /// Opaque context passed to extension function callbacks.
-    pub const Context = c.sqlite3_context;
+    pub const Context = mod.c.sqlite3_context;
 
     /// Opaque value handle for reading function arguments.
-    pub const Value = c.sqlite3_value;
+    pub const Value = mod.c.sqlite3_value;
 
     // -------------------------------------------------------------------------
     // SQLite type discriminators
 
-    pub const SQLITE_NULL = c.SQLITE_NULL;
-    pub const SQLITE_BLOB = c.SQLITE_BLOB;
-    pub const SQLITE_TEXT = c.SQLITE_TEXT;
-    pub const SQLITE_INTEGER = c.SQLITE_INTEGER;
-    pub const SQLITE_FLOAT = c.SQLITE_FLOAT;
+    pub const SQLITE_NULL = mod.c.SQLITE_NULL;
+    pub const SQLITE_BLOB = mod.c.SQLITE_BLOB;
+    pub const SQLITE_TEXT = mod.c.SQLITE_TEXT;
+    pub const SQLITE_INTEGER = mod.c.SQLITE_INTEGER;
+    pub const SQLITE_FLOAT = mod.c.SQLITE_FLOAT;
 
     // -------------------------------------------------------------------------
     // Function registration flags
 
-    pub const SQLITE_UTF8 = c.SQLITE_UTF8;
-    pub const SQLITE_DETERMINISTIC = c.SQLITE_DETERMINISTIC;
+    pub const SQLITE_UTF8 = mod.c.SQLITE_UTF8;
+    pub const SQLITE_DETERMINISTIC = mod.c.SQLITE_DETERMINISTIC;
 
     // -------------------------------------------------------------------------
     // Callback function type
@@ -51,6 +49,7 @@ pub const Extension = struct {
 
     /// No-op destructor.
     pub fn deinit(self: *Self) void {
+        log.debug("{s}:{d} :: {s}", .{ @src().file, @src().line, @src().fn_name });
         _ = self;
     }
 
@@ -58,52 +57,52 @@ pub const Extension = struct {
     // Value accessors (used inside extension function callbacks)
 
     /// Returns the type discriminator for a value argument.
-    pub const valueType = c.sqlite3_value_type;
+    pub const valueType = mod.c.sqlite3_value_type;
 
     /// Returns a pointer to the blob data for a value argument.
-    pub const valueBlob = c.sqlite3_value_blob;
+    pub const valueBlob = mod.c.sqlite3_value_blob;
 
     /// Returns a pointer to the text data for a value argument.
-    pub const valueText = c.sqlite3_value_text;
+    pub const valueText = mod.c.sqlite3_value_text;
 
     /// Returns the byte length of a blob or text value argument.
-    pub const valueBytes = c.sqlite3_value_bytes;
+    pub const valueBytes = mod.c.sqlite3_value_bytes;
 
     // -------------------------------------------------------------------------
     // Result setters (used inside extension function callbacks)
 
     /// Sets the function result to a blob value.
-    pub const resultBlob = c.sqlite3_result_blob;
+    pub const resultBlob = mod.c.sqlite3_result_blob;
 
     /// Sets the function result to a text value.
-    pub const resultText = c.sqlite3_result_text;
+    pub const resultText = mod.c.sqlite3_result_text;
 
     /// Sets the function result to SQL NULL.
-    pub const resultNull = c.sqlite3_result_null;
+    pub const resultNull = mod.c.sqlite3_result_null;
 
     /// Sets the function result to an error with a message.
-    pub const resultError = c.sqlite3_result_error;
+    pub const resultError = mod.c.sqlite3_result_error;
 
     /// Sets the function result to an out-of-memory error.
-    pub const resultErrorNomem = c.sqlite3_result_error_nomem;
+    pub const resultErrorNomem = mod.c.sqlite3_result_error_nomem;
 
     /// Returns the database connection handle associated with a callback context.
-    pub const contextDbHandle = c.sqlite3_context_db_handle;
+    pub const contextDbHandle = mod.c.sqlite3_context_db_handle;
 
     // -------------------------------------------------------------------------
     // Raw C API (for shell integration and auto-extension registration)
 
     /// Opaque raw database connection handle (sqlite3*).
-    pub const Db = c.sqlite3;
+    pub const Db = mod.c.sqlite3;
 
     /// SQLite success result code.
-    pub const SQLITE_OK = c.SQLITE_OK;
+    pub const SQLITE_OK = mod.c.SQLITE_OK;
 
     /// Raw sqlite3_create_function for use with raw db handles (e.g. auto-extension callbacks).
-    pub const createFunction = c.sqlite3_create_function;
+    pub const createFunction = mod.c.sqlite3_create_function;
 
     /// Registers an auto-extension that runs on every new connection.
-    pub const autoExtension = c.sqlite3_auto_extension;
+    pub const autoExtension = mod.c.sqlite3_auto_extension;
 
     /// Auto-extension entry point signature: called on every new connection.
     pub const AutoExtensionFn = *const fn (?*Db, ?*?*u8, ?*const anyopaque) callconv(.c) c_int;
@@ -112,19 +111,12 @@ pub const Extension = struct {
     // Registration
 
     /// Registers a scalar SQL function on the given database connection.
-    pub fn register(
-        db: *mod.SQLite,
-        name: [*:0]const u8,
-        n_arg: c_int,
-        flags: c_int,
-        user_data: ?*anyopaque,
-        func: ScalarFn,
-    ) !void {
+    pub fn register(db: *mod.SQLite, name: [*:0]const u8, n_arg: c_int, flags: c_int, user_data: ?*anyopaque, func: ScalarFn) !void {
         log.debug("{s}:{d} :: {s}", .{ @src().file, @src().line, @src().fn_name });
         const handle = db.db orelse return error.SQLiteMisuse;
-        const rc = c.sqlite3_create_function(handle, name, n_arg, flags, user_data, func, null, null);
-        if (rc != c.SQLITE_OK) {
-            log.err("register failed for {s}: {s}", .{ name, c.sqlite3_errmsg(handle) });
+        const rc = mod.c.sqlite3_create_function(handle, name, n_arg, flags, user_data, func, null, null);
+        if (rc != mod.c.SQLITE_OK) {
+            log.err("register failed for {s}: {s}", .{ name, mod.c.sqlite3_errmsg(handle) });
             return mod.Errors.mapError(rc);
         }
     }

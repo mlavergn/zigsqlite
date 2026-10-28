@@ -1,5 +1,6 @@
 .zig-cache/
 zig-out/
 .claude
-.inferise
 .gitmodules
+zig-pkg/
+deps/

@@ -1,12 +1,23 @@
 .{
     .name = .zigsqlite,
-    .version = "1.0.2-sqlite-3051002",
-    .minimum_zig_version = "0.16.0",
+    .version = "1.0.3-sqlite-3054001",
+    .minimum_zig_version = "0.17.0",
     .fingerprint = 0xb48b33fcebd121b,
     .paths = .{
-        "sqlite",
+        "deps",
         "src",
         "cli",
     },
-    .dependencies = .{},
+    .dependencies = .{
+        .zigbuildx = .{
+            .url = "git+https://github.com/mlavergn/zigbuildx?ref=v5.1.0#57e98c96795f708fc91e69eab2ce8cf6ec350cee",
+            .hash = "zigbuildx-5.1.0-9koPhJcsBAB39QF21x2r6-T1LQi32FrZmnpvzyLkYoxO",
+        },
+        // The SQLite amalgamation, unpacked into deps/sqlite/ (git-ignored) by
+        // zigbuildx's Deps.cloneMissing. Change the URL to upgrade SQLite.
+        .sqlite = .{
+            .path = "deps/sqlite",
+            .archive = "https://www.sqlite.org/2026/sqlite-amalgamation-3540100.zip",
+        },
+    },
 }
